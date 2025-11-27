@@ -5,8 +5,8 @@ timeout=0              # do not wait, boot immediately
 
 title Task1 OS         # title of the menu entry
 kernel /boot/kernel.elf    # path to the kernel file to load (path inside the ISO)
-
-Tell GRUB which kernel to boot, load the kernel according to kernel /boot/kernel.elf, check the Multiboot header in kernel.elf, and jump to our loader label to start execution
+```
+  Tell GRUB which kernel to boot, load the kernel according to kernel /boot/kernel.elf, check the Multiboot header in kernel.elf, and jump to our loader label to start execution
  ```
 
 # Loader
@@ -34,7 +34,10 @@ loader:                                ; kernel entry point, GRUB jumps here to 
 ```
   GRUB loads correctly and jumps into the loader, executes mov eax, 0xCAFEBABE, and EAX no longer changes in the infinite loop.EAX=cafebabe will keep appearing in QEMU's CPU log.
  # Kernel Entry Point
+
  ``` asm
 loader:
     mov eax, 0xCAFEBABE
- Write a minimal kernel with a Multiboot header so that GRUB can recognize and load it, then write a kernel entry point, build a bootable ISO image containing GRUB and the kernel, and finally use QEMU's CPU logs to check the register status.
+ ```
+   Write a minimal kernel with a Multiboot header so that GRUB can recognize and load it, then write a kernel entry point, build a bootable ISO image containing GRUB and the kernel, and finally use QEMU's CPU logs to check the register status.
+ ```
