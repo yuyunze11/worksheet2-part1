@@ -8,9 +8,10 @@ kernel /boot/kernel.elf    # path to the kernel file to load (path inside the IS
 ```
   Tell GRUB which kernel to boot, load the kernel according to kernel /boot/kernel.elf, check the Multiboot header in kernel.elf, and jump to our loader label to start execution
  ```
+``` 
+ # Loader
+``` asm
 
-# Loader
- ``` asm
  global loader                          ; kernel entry point
 
 ;Multiboot header definition
