@@ -1,0 +1,59 @@
+# ================== 工具配置 ==================
+CC      := gcc          # 如果有交叉编译器，可以改成 i686-elf-gcc
+LD      := ld
+ASM     := nasm
+CFLAGS  := -m32 -ffreestanding -O2 -Wall -Wextra \
+           -fno-stack-protector -fno-pic -nostdlib
+ASFLAGS := -f elf32
+LDFLAGS := -m elf_i386
+
+KERNEL  := kernel.elf
+ISO     := os.iso
+
+BOOT_DIR := boot
+SRC_DIR  := source
+DRV_DIR  := drivers
+
+OBJS := loader.o io.o fb.o kmain.o
+
+# ================== 默认目标 ==================
+all: $(KERNEL)
+
+# ================== 链接内核 ==================
+$(KERNEL): $(OBJS) link.ld
+	$(LD) $(LDFLAGS) -T link.ld -o $@ $(OBJS)
+
+# ================== 汇编文件 ==================
+loader.o: $(BOOT_DIR)/loader.asm
+	$(ASM) $(ASFLAGS) $< -o $@
+
+io.o: $(SRC_DIR)/io.asm
+	$(ASM) $(ASFLAGS) $< -o $@
+
+# ================== C 文件 ==================
+kmain.o: $(SRC_DIR)/kmain.c $(DRV_DIR)/fb.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+fb.o: $(DRV_DIR)/fb.c $(DRV_DIR)/fb.h $(SRC_DIR)/io.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# ================== 生成 ISO（给 GRUB 用） ==================
+# 需要: kernel.elf, menu.lst, stage2_eltorito
+iso: $(KERNEL) menu.lst stage2_eltorito
+	mkdir -p iso/boot/grub
+	cp $(KERNEL)           iso/boot/kernel.elf
+	cp menu.lst            iso/boot/grub/menu.lst
+	cp stage2_eltorito     iso/boot/grub/
+	mkisofs -R -b boot/grub/stage2_eltorito -no-emul-boot \
+		-boot-load-size 4 -boot-info-table -o $(ISO) iso
+
+# ================== 运行 ==================
+run: $(KERNEL)
+	qemu-system-i386 -kernel $(KERNEL)
+
+run-iso: iso
+	qemu-system-i386 -cdrom $(ISO)
+
+# ================== 清理 ==================
+clean:
+	rm -rf $(OBJS) $(KERNEL) $(ISO) iso

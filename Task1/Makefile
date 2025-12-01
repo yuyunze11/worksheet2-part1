@@ -1,4 +1,4 @@
-ASM = nasm
+NASM= nasm
 LD = ld
 GENISO = genisoimage
 QEMU = qemu-system-i386
@@ -31,6 +31,7 @@ run: $(ISO_IMAGE)
 	$(QEMU) $(QEMU_FLAGS)
 
 clean:
-	rm -f $(LOADER_OBJ) $(KERNEL_ELF) $(ISO_IMAGE) logQ.txt $(LOADER_OBJ)
+	rm -f $(LOADER_OBJ) $(KERNEL_ELF) $(ISO_IMAGE) logQ.txt
+
 
 .PHONY: all run clean
