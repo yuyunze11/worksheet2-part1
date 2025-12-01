@@ -1,9 +1,9 @@
-# ===== 工具链 =====
+#工具
 CC      := gcc
 LD      := ld
 ASM     := nasm
 
-# ===== 编译参数 =====
+#编译参数
 CFLAGS  := -m32 -ffreestanding -O2 -Wall -Wextra \
            -fno-stack-protector -fno-pic -nostdlib
 ASFLAGS := -f elf32
@@ -29,21 +29,21 @@ kernel: $(KERNEL)
 $(KERNEL): $(OBJS) $(SRCDIR)/link.ld
 	$(LD) $(LDFLAGS) -T $(SRCDIR)/link.ld -o $@ $(OBJS)
 
-# ===== 汇编 → .o =====
+# 汇编 → .o
 loader.o: $(SRCDIR)/loader.asm
 	$(ASM) $(ASFLAGS) $< -o $@
 
 io.o: $(SRCDIR)/io.asm
 	$(ASM) $(ASFLAGS) $< -o $@
 
-# ===== C → .o =====
+# C → .o
 fb.o: $(DRVDIR)/fb.c $(DRVDIR)/fb.h $(SRCDIR)/io.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 kmain.o: $(SRCDIR)/kmain.c $(DRVDIR)/fb.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# ===== 生成 ISO =====
+# 生成 ISO
 iso: $(ISO)
 
 $(ISO): $(KERNEL) $(ISODIR)/boot/grub/menu.lst $(ISODIR)/boot/grub/stage2_eltorito
@@ -61,7 +61,7 @@ run-kernel: $(KERNEL)
 run: $(ISO)
 	qemu-system-i386 -display curses -boot d -cdrom $(ISO) -m 32
 
-# ===== 清理 =====
+# 清理
 .PHONY: clean
 
 clean:
