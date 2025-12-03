@@ -1,59 +1,42 @@
 #include "fb.h"
 #include "../source/io.h"
 
-// 当前前景色 / 背景色（默认：白字黑底）
-uint8_t fb_fg = FB_WHITE;
-uint8_t fb_bg = FB_BLACK;
+//这里用 uint8_t/uint16_t 是因为一般在 fb.h 里已经包含了 <stdint.h>
 
-// 当前光标位置
+uint8_t fb_fg = FB_WHITE;   // 默认白字
+uint8_t fb_bg = FB_BLACK;   // 默认黑底
+
+//当前光标位置（以字符为单位的 x,y）
 static uint16_t fb_cursor_x = 0;
 static uint16_t fb_cursor_y = 0;
 
-// 计算 (x, y) 在显存中的下标
+static volatile uint8_t *fb = (uint8_t *)FB_ADDRESS;
+
 static uint16_t fb_pos(uint16_t x, uint16_t y)
 {
     return y * FB_COLS + x;
 }
 
-// 更新硬件光标
+//往第 pos 个格子写一个字符 + 颜色属性
+static void fb_write_cell(uint16_t pos, char c, uint8_t fg, uint8_t bg)
+{
+    fb[pos * 2]     = (uint8_t)c;                // 字符
+    fb[pos * 2 + 1] = (bg << 4) | (fg & 0x0F);   // 高4位背景色，低4位前景色
+}
+
+//用教材里的 outb 指令更新硬件光标位置
 static void fb_update_cursor(void)
 {
     uint16_t pos = fb_pos(fb_cursor_x, fb_cursor_y);
 
-    outb(FB_CMD_PORT, FB_HIGH_BYTE_CMD);
+    outb(FB_CMD_PORT, FB_HIGH_BYTE_CMD);              // 0x3D4, 14
     outb(FB_DATA_PORT, (pos >> 8) & 0xFF);
-    outb(FB_CMD_PORT, FB_LOW_BYTE_CMD);
+
+    outb(FB_CMD_PORT, FB_LOW_BYTE_CMD);               // 0x3D4, 15
     outb(FB_DATA_PORT, pos & 0xFF);
 }
 
-// 向上滚动一行
-static void fb_scroll(void)
-{
-    if (fb_cursor_y < FB_ROWS)
-        return;
-
-    // 1~24 行搬到 0~23 行
-    for (uint16_t y = 1; y < FB_ROWS; y++) {
-        for (uint16_t x = 0; x < FB_COLS; x++) {
-            FB_ADDR[fb_pos(x, y - 1)] = FB_ADDR[fb_pos(x, y)];
-        }
-    }
-
-    // 清空最后一行
-    uint16_t attr = (fb_bg << 4) | fb_fg;
-    uint16_t blank = (attr << 8) | ' ';
-    uint16_t last_row = FB_ROWS - 1;
-
-    for (uint16_t x = 0; x < FB_COLS; x++) {
-        FB_ADDR[fb_pos(x, last_row)] = blank;
-    }
-
-    fb_cursor_y = last_row;
-    fb_cursor_x = 0;
-    fb_update_cursor();
-}
-
-// 初始化帧缓冲
+//初始化 framebuffer：颜色/光标归零，然后清屏
 void fb_init(void)
 {
     fb_fg = FB_WHITE;
@@ -63,7 +46,30 @@ void fb_init(void)
     fb_clear();
 }
 
-// 移动光标到 (x, y)
+//清屏：用当前前景/背景色刷满空格
+void fb_clear(void)
+{
+    uint16_t x, y;
+
+    for (y = 0; y < FB_ROWS; y++) {
+        for (x = 0; x < FB_COLS; x++) {
+            uint16_t pos = fb_pos(x, y);
+            fb_write_cell(pos, ' ', fb_fg, fb_bg);
+        }
+    }
+
+    fb_cursor_x = 0;
+    fb_cursor_y = 0;
+    fb_update_cursor();
+}
+    //设置当前使用的颜色（后面 print 都用它）
+void fb_set_color(uint8_t fg, uint8_t bg)
+{
+    fb_fg = fg;
+    fb_bg = bg;
+}
+
+//把“逻辑光标”移动到 (x, y)，并更新硬件光标
 void fb_move_cursor_xy(uint16_t x, uint16_t y)
 {
     if (x >= FB_COLS) x = FB_COLS - 1;
@@ -74,88 +80,38 @@ void fb_move_cursor_xy(uint16_t x, uint16_t y)
     fb_update_cursor();
 }
 
-// 打印单个字符
-void fb_print_char(char c)
+static void fb_put_char(char c)
 {
     if (c == '\n') {
+        // 简单处理换行
         fb_cursor_x = 0;
         fb_cursor_y++;
-    } else if (c == '\r') {
-        fb_cursor_x = 0;
     } else {
-        if (fb_cursor_y >= FB_ROWS) {
-            fb_scroll();
-        }
-
-        uint16_t attr = (fb_bg << 4) | fb_fg;
-        uint16_t data = (attr << 8) | (uint8_t)c;
-
-        FB_ADDR[fb_pos(fb_cursor_x, fb_cursor_y)] = data;
-
+        uint16_t pos = fb_pos(fb_cursor_x, fb_cursor_y);
+        fb_write_cell(pos, c, fb_fg, fb_bg);
         fb_cursor_x++;
+
         if (fb_cursor_x >= FB_COLS) {
             fb_cursor_x = 0;
             fb_cursor_y++;
         }
     }
 
+    // 简单起见，暂时不做滚屏，超出就写到下面去了
     if (fb_cursor_y >= FB_ROWS) {
-        fb_scroll();
-    } else {
-        fb_update_cursor();
-    }
-}
-
-// 打印字符串
-void fb_print_string(const char* str)
-{
-    for (int i = 0; str[i] != '\0'; i++) {
-        fb_print_char(str[i]);
-    }
-}
-
-// 递归打印无符号整数
-static void fb_print_num_recursive(uint32_t n)
-{
-    if (n >= 10) {
-        fb_print_num_recursive(n / 10);
-    }
-    fb_print_char('0' + (n % 10));
-}
-
-// 打印有符号整数
-void fb_print_num(int32_t num)
-{
-    if (num < 0) {
-        fb_print_char('-');
-        fb_print_num_recursive((uint32_t)(-num));
-    } else {
-        fb_print_num_recursive((uint32_t)num);
-    }
-}
-
-// 设置前景/背景色
-void fb_set_color(uint8_t fg, uint8_t bg)
-{
-    fb_fg = fg & 0x0F;
-    fb_bg = bg & 0x0F;
-}
-
-// 清屏
-void fb_clear(void)
-{
-    uint16_t attr = (fb_bg << 4) | fb_fg;
-    uint16_t blank = (attr << 8) | ' ';
-
-    for (uint16_t y = 0; y < FB_ROWS; y++) {
-        for (uint16_t x = 0; x < FB_COLS; x++) {
-            FB_ADDR[fb_pos(x, y)] = blank;
-        }
+        fb_cursor_y = FB_ROWS - 1;
     }
 
-    fb_cursor_x = 0;
-    fb_cursor_y = 0;
     fb_update_cursor();
+}
+
+//从当前光标位置开始，输出一整串字符串
+void fb_print_string(const char *str)
+{
+    while (*str) {
+        fb_put_char(*str);
+        str++;
+    }
 }
 
 

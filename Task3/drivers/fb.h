@@ -6,7 +6,6 @@
 
 #define FB_BLACK	0x0
 #define FB_BLUE		0x1
-#define FB_GREEN	0x2
 #define FB_CYAN		0x3
 #define FB_RED		0x4
 #define FB_MAGENTA	0x5
@@ -21,7 +20,7 @@
 #define FB_LIGHT_BROWN	0xE
 #define FB_WHITE	0xF
 
-#define FB_ADDR ((uint16_t*)0xB8000)
+#define FB_ADDRESS              0xB8000
 #define FB_COLS                 80 
 #define FB_ROWS                 25 
 #define FB_CMD_PORT             0x3D4 
