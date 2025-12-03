@@ -53,3 +53,4 @@ int kmain()                                       ; kernel C entry point
 ```
 The GRUB bootloader loads the kernel's Multiboot header and begins execution;The assembly-based loader sets up the kernel stack and invokes the C function kmain();The sum of the return values of three functions within kmain() yields 104.
 
+![Task2](Task2.png)
