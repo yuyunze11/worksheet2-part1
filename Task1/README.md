@@ -41,4 +41,5 @@ loader:
     mov eax, 0xCAFEBABE
  ```
    Write a minimal kernel with a Multiboot header so that GRUB can recognize and load it, then write a kernel entry point, build a bootable ISO image containing GRUB and the kernel, and finally use QEMU's CPU logs to check the register status.
- ```
+
+  ![Task1](Task1.png)
