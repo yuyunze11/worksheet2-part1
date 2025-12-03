@@ -43,7 +43,7 @@ loader:
 The first three 'dd's are "identifiers" for GRUB, telling GRUB that this is a program that can be booted as a kernel.
 prepare a 4KB stack in the .bss section, then point esp to it for use by subsequent C functions.
 Directly write A, S, M and color bytes to 0xB8000 to display "ASM" in the upper left corner of the screen, confirming that the loader is indeed running. Finally, call kmain to jump to the entry function in C. If by any chance we return from kmain in the future, we will hang in an infinite loop to prevent the CPU from running amok.
-![Task3 framebuffer demo](Task3.png)
+![Task3](Task3.png)
 
 
 # 2 io.h io.asm
@@ -127,7 +127,7 @@ Finally, enter an infinite loop to prevent returning from the kernel to an unkno
   uint8_t fb_bg = FB_BLACK;
 // Current foreground / background color (default: white on black)
 
-  static uint16_t fb_cursor_x = 0;
+  static uint16_t fb_cursor_x = 0; //逻辑光标的位置（第几列、第几行），从 0 开始计数。
   static uint16_t fb_cursor_y = 0;
 // Current cursor position (in character cells)
 
@@ -135,15 +135,15 @@ Finally, enter an infinite loop to prevent returning from the kernel to an unkno
 // Framebuffer base address in text mode: 0xB8000
 // Each character cell uses 2 bytes: [char][attribute]
 
+  把 (x,y) 变成一维下标
   static uint16_t fb_pos(uint16_t x, uint16_t y) {
     return y * FB_COLS + x;
-}
-// Convert (x, y) to a linear position index
+}// Convert (x, y) to a linear position index
 
-
+写一个“格子”：字符 + 颜色
   static void fb_write_cell(uint16_t pos, char c, uint8_t fg, uint8_t bg) {
-    fb[pos * 2]     = (uint8_t)c;                // character byte
-    fb[pos * 2 + 1] = (bg << 4) | (fg & 0x0F);   // attribute byte: high 4 bits = bg, low 4 bits = fg
+    字符fb[pos * 2]     = (uint8_t)c;                // character byte
+    颜色属性fb[pos * 2 + 1] = (bg << 4) | (fg & 0x0F);   // attribute byte: high 4 bits = bg, low 4 bits = fg
 }
 // Write a character + color attribute to cell at position pos
 
@@ -153,16 +153,16 @@ Finally, enter an infinite loop to prevent returning from the kernel to an unkno
 
     outb(FB_CMD_PORT, FB_HIGH_BYTE_CMD);         // select high byte register (0x3D4, 14)
     outb(FB_DATA_PORT, (pos >> 8) & 0xFF);
-// Write high 8 bits of the cursor position
+// Write high 8 bits of the cursor position告诉显卡：我要改“光标位置的高 8 位
 
     outb(FB_CMD_PORT, FB_LOW_BYTE_CMD);          // select low byte register (0x3D4, 15)
     outb(FB_DATA_PORT, pos & 0xFF);
 }
-// Write low 8 bits of the cursor position
+// Write low 8 bits of the cursor position我要改“光标位置的低 8 位
 
-// 初始化：设置默认颜色，清屏，光标归零
-void fb_init(void);// 清屏：用当前颜色把整屏刷成空格
-void fb_clear(void);// 设置之后打印用的前景色 / 背景色
+// Initialization: Set default color, clear the screen, reset the cursor to zero初始化：设置默认颜色，清屏，光标归零
+void fb_init(void); // Clear screen: Use the current color to paint the entire screen with spaces.清屏：用当前颜色把整屏刷成空格
+void fb_clear(void);// 设置之后打印用的前景色 / 背景色The foreground color / background color used for printing after setting
 void fb_set_color(uint8_t fg, uint8_t bg);// 把光标移动到 (x, y)，并调用 fb_update_cursor() 更新硬件光标
 void fb_move_cursor_xy(uint16_t x, uint16_t y);// 从当前光标位置开始输出一个字符串，自动推进光标
 void fb_print_string(const char *str);
